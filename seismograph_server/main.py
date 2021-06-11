@@ -3,6 +3,7 @@ import time
 import os
 from pathlib import Path
 from multiprocessing import Process
+from dotenv import load_dotenv
 
 SERVER_PORT = 20001
 BUFFER_SIZE = 1024
@@ -13,7 +14,8 @@ ROOT_PATH = Path(__file__).parent.parent
 
 
 def main():
-    server_ip = "192.168.67.23"
+    load_dotenv()
+    server_ip = os.getenv("SEISMOGRAPH_SERVER_IP")
     run(server_ip)
 
 
@@ -37,7 +39,7 @@ def run(server_ip: str):
     samples = []
     file_count = 1
 
-    print(f"Running seismograph server on UDP port {SERVER_PORT}")
+    print(f"Reading data on UDP {server_ip}:{SERVER_PORT}")
     while True:
         message = udp_server_socket.recvfrom(BUFFER_SIZE)
 
