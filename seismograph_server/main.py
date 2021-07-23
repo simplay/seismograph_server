@@ -3,6 +3,11 @@ import os
 import socket
 import time
 import types
+import typing
+import requests
+import json
+import time
+from datetime import datetime
 from enum import Enum
 from multiprocessing import Process
 from pathlib import Path
@@ -42,11 +47,12 @@ class TestConnection(Connection):
 
     def message(self):
         if self.line_counter >= len(self.data):
-            exit(0)
+            self.line_counter = 0
 
-        sample = self.data[self.line_counter].strip().encode()
-        self.line_counter += 1
+        sample = self.data[self.line_counter].strip()
+        self.line_counter = (self.line_counter + 1) % len(self.data)
 
+        time.sleep(0.05)
         return [sample, None]
 
     def ack_message(self, address):
@@ -94,21 +100,59 @@ def main() -> None:
     server_ip = os.getenv("SEISMOGRAPH_SERVER_IP")
     storage_method_name = os.getenv("SEISMOGRAPH_STORAGE_METHOD")
     connection_type_name = os.getenv("SEISMOGRAPH_CONNECTION_TYPE")
+    backend_url = os.getenv("SEISMOGRAPH_PIPELINE_BACKEND_URL")
+    host_ip = os.getenv("SEISMOGRAPH_HOST_IP")
+    location = os.getenv("SEISMOGRAPH_LOCATION")
+
+    meta_data = {
+        "backend_url": backend_url,
+        "host_ip": host_ip,
+        "location": location
+    }
 
     connection = connection_types[ConnectionTypes(connection_type_name)](server_ip, SERVER_PORT)
 
     try:
         storage_method = storage_methods[StorageMethods(storage_method_name)]
-        run(connection, storage_method)
+        run(connection, storage_method, meta_data)
     except (KeyError, ValueError):
         print(f"Not supported storage method '{storage_method_name}'")
 
 
-def send_to_pipeline(data: list, file_count: int) -> None:
-    pass
+def send_to_pipeline(data: typing.List[str], meta_data: dict) -> None:
+    now = datetime.now()
+    timestamp = datetime.timestamp(now)
+
+    headers = {"Content-Type": "application/json"}
+
+    backend_url = meta_data["backend_url"]
+
+    url = f"http://{backend_url}/sensors/seismograph"
+    params = [
+        {
+            'data': data,
+            'timestamp': timestamp,
+            'location': meta_data["location"],
+            'ip': meta_data["host_ip"]
+        }
+    ]
+
+    try:
+        response = requests.post(
+            url,
+            data=json.dumps(params),
+            headers=headers
+        )
+        if response.status_code == 201:
+            print(response)
+
+    except Exception as err:
+        print(str(err))
+        print("Connection error - reconnecting to backend server...")
 
 
-def save_to_file(data: list, file_count: int) -> None:
+def save_to_file(data: typing.List[str], meta_data: dict) -> None:
+    file_count = meta_data["file_count"]
     timestamp = int(round(time.time() * 1000))
     print("foo")
 
@@ -122,7 +166,7 @@ def save_to_file(data: list, file_count: int) -> None:
             file.write("\n")
 
 
-def run(connection: Connection, storage_method: types.FunctionType) -> None:
+def run(connection: Connection, storage_method: types.FunctionType, meta_data: dict) -> None:
     """ Fetches samples from a seismograph server and stores it according to a provided storage method function """
 
     samples = []
@@ -146,8 +190,8 @@ def run(connection: Connection, storage_method: types.FunctionType) -> None:
 
         samples.append(data)
         if len(samples) > MAX_SAMPLES:
-            storage_method(samples, file_count)
-            process = Process(target=storage_method, args=(samples, file_count))
+            meta_data["file_count"] = file_count
+            process = Process(target=storage_method, args=(samples, meta_data))
             process.daemon = True
             process.start()
 
