@@ -69,7 +69,7 @@ class SeismographConnection(Connection):
         self.udp_server_socket.bind((server_ip, server_port))
 
     def message(self):
-        return self.udp_server_socket.recvfrom(self.BUFFER_SIZE)
+        return self.udp_server_socket.recvfrom(self.BUFFER_SIZE).decode("utf-8")
 
     def ack_message(self, address):
         self.udp_server_socket.sendto(self.RESPONSE_MSG, address)
@@ -154,7 +154,6 @@ def send_to_pipeline(data: typing.List[str], meta_data: dict) -> None:
 def save_to_file(data: typing.List[str], meta_data: dict) -> None:
     file_count = meta_data["file_count"]
     timestamp = int(round(time.time() * 1000))
-    print("foo")
 
     filename = f"seismograph_{str(timestamp)}_{str(file_count)}.txt"
     filepath = os.path.join(ROOT_PATH, 'data', filename)
@@ -162,7 +161,7 @@ def save_to_file(data: typing.List[str], meta_data: dict) -> None:
     print(f"Saving samples to {filepath}")
     with open(filepath, 'w') as file:
         while len(data) > 0:
-            file.write(data.pop(0).decode("utf-8"))
+            file.write(data.pop(0))
             file.write("\n")
 
 
