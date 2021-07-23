@@ -144,11 +144,10 @@ def send_to_pipeline(data: typing.List[str], meta_data: dict) -> None:
             headers=headers
         )
         if response.status_code == 201:
-            print(response)
+            print(response.text)
 
     except Exception as err:
         print(str(err))
-        print("Connection error - reconnecting to backend server...")
 
 
 def save_to_file(data: typing.List[str], meta_data: dict) -> None:
