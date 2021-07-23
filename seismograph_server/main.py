@@ -1,18 +1,35 @@
+import os
 import socket
 import time
-import os
 import types
-from pathlib import Path
-from multiprocessing import Process
-from dotenv import load_dotenv
 from enum import Enum
+from multiprocessing import Process
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 SERVER_PORT = 20001
-BUFFER_SIZE = 1024
 RESPONSE_MSG = str.encode("ACK")
 MAX_SAMPLES = 100
 
 ROOT_PATH = Path(__file__).parent.parent
+
+
+class SeismographConnection:
+    BUFFER_SIZE = 1024
+    RESPONSE_MSG = str.encode("ACK")
+
+    def __init__(self, server_ip: str, server_port: str):
+        self.server_ip = server_ip
+        self.server_port = server_port
+        self.udp_server_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.udp_server_socket.bind((server_ip, server_port))
+
+    def message(self):
+        return self.udp_server_socket.recvfrom(self.BUFFER_SIZE)
+
+    def ack_message(self, address):
+        self.udp_server_socket.sendto(self.RESPONSE_MSG, address)
 
 
 class StorageMethods(Enum):
@@ -30,9 +47,11 @@ def main() -> None:
     server_ip = os.getenv("SEISMOGRAPH_SERVER_IP")
     storage_method_name = os.getenv("SEISMOGRAPH_STORAGE_METHOD")
 
+    connection = SeismographConnection(server_ip, SERVER_PORT)
+
     try:
         storage_method = storage_methods[StorageMethods(storage_method_name)]
-        run(server_ip, storage_method)
+        run(connection, storage_method)
     except (KeyError, ValueError):
         print(f"Not supported storage method '{storage_method_name}'")
 
@@ -54,18 +73,15 @@ def save_to_file(data: list, file_count: int) -> None:
             file.write("\n")
 
 
-def run(server_ip: str, storage_method: types.FunctionType) -> None:
+def run(connection: SeismographConnection, storage_method: types.FunctionType) -> None:
     """ Fetches samples from a seismograph server and stores it according to a provided storage method function """
-
-    udp_server_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-    udp_server_socket.bind((server_ip, SERVER_PORT))
 
     samples = []
     file_count = 1
 
-    print(f"Reading data on UDP {server_ip}:{SERVER_PORT}")
+    print(f"Reading data on UDP {connection.server_ip}:{SERVER_PORT}")
     while True:
-        message = udp_server_socket.recvfrom(BUFFER_SIZE)
+        message = connection.message()
 
         # https://manual.raspberryshake.org/udp.html
         # data-format:
@@ -88,7 +104,7 @@ def run(server_ip: str, storage_method: types.FunctionType) -> None:
             samples = []
             file_count += 1
 
-        udp_server_socket.sendto(RESPONSE_MSG, address)
+        connection.ack_message(address)
 
 
 if __name__ == "__main__":
