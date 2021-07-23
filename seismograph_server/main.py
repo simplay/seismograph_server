@@ -1,9 +1,11 @@
 import socket
 import time
 import os
+import types
 from pathlib import Path
 from multiprocessing import Process
 from dotenv import load_dotenv
+from enum import Enum
 
 SERVER_PORT = 20001
 BUFFER_SIZE = 1024
@@ -13,13 +15,33 @@ MAX_SAMPLES = 100
 ROOT_PATH = Path(__file__).parent.parent
 
 
-def main():
+class StorageMethods(Enum):
+    TO_PIPELINE = "pipeline"
+    TO_FILE = "file"
+
+
+def main() -> None:
+    storage_methods = {
+        StorageMethods.TO_FILE: save_to_file,
+        StorageMethods.TO_PIPELINE: send_to_pipeline
+    }
+
     load_dotenv()
     server_ip = os.getenv("SEISMOGRAPH_SERVER_IP")
-    run(server_ip)
+    storage_method_name = os.getenv("SEISMOGRAPH_STORAGE_METHOD")
+
+    try:
+        storage_method = storage_methods[StorageMethods(storage_method_name)]
+        run(server_ip, storage_method)
+    except (KeyError, ValueError):
+        print(f"Not supported storage method '{storage_method_name}'")
 
 
-def save_to_file(data: list, file_count: int):
+def send_to_pipeline(data: list, file_count: int) -> None:
+    pass
+
+
+def save_to_file(data: list, file_count: int) -> None:
     timestamp = int(round(time.time() * 1000))
 
     filename = f"seismograph_{str(timestamp)}_{str(file_count)}.txt"
@@ -32,7 +54,9 @@ def save_to_file(data: list, file_count: int):
             file.write("\n")
 
 
-def run(server_ip: str):
+def run(server_ip: str, storage_method: types.FunctionType) -> None:
+    """ Fetches samples from a seismograph server and stores it according to a provided storage method function """
+
     udp_server_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
     udp_server_socket.bind((server_ip, SERVER_PORT))
 
@@ -57,7 +81,7 @@ def run(server_ip: str):
 
         samples.append(data)
         if len(samples) > MAX_SAMPLES:
-            process = Process(target=save_to_file, args=(samples, file_count))
+            process = Process(target=storage_method, args=(samples, file_count))
             process.daemon = True
             process.start()
 
