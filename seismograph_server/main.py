@@ -1,3 +1,4 @@
+import abc
 import os
 import socket
 import time
@@ -15,13 +16,49 @@ MAX_SAMPLES = 100
 ROOT_PATH = Path(__file__).parent.parent
 
 
-class SeismographConnection:
+class Connection:
+    def __init__(self, server_ip: str, server_port: str):
+        self.server_ip = server_ip
+        self.server_port = server_port
+
+    @abc.abstractmethod
+    def message(self):
+        return
+
+    @abc.abstractmethod
+    def ack_message(self):
+        return
+
+
+class TestConnection(Connection):
+    def __init__(self, server_ip: str, server_port: str):
+        super().__init__(server_ip, server_port)
+        self.data = []
+        self.line_counter = 0
+
+        test_filepath = os.path.join(ROOT_PATH, "test_data", "seismograph_1623428408489_1.txt")
+        with open(test_filepath, "r") as file:
+            self.data = file.readlines()
+
+    def message(self):
+        if self.line_counter >= len(self.data):
+            exit(0)
+
+        sample = self.data[self.line_counter].strip().encode()
+        self.line_counter += 1
+
+        return [sample, None]
+
+    def ack_message(self, address):
+        pass
+
+
+class SeismographConnection(Connection):
     BUFFER_SIZE = 1024
     RESPONSE_MSG = str.encode("ACK")
 
     def __init__(self, server_ip: str, server_port: str):
-        self.server_ip = server_ip
-        self.server_port = server_port
+        super().__init__(server_ip, server_port)
         self.udp_server_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         self.udp_server_socket.bind((server_ip, server_port))
 
@@ -37,17 +74,28 @@ class StorageMethods(Enum):
     TO_FILE = "file"
 
 
+class ConnectionTypes(Enum):
+    TEST = "test"
+    SERVER = "server"
+
+
 def main() -> None:
     storage_methods = {
         StorageMethods.TO_FILE: save_to_file,
         StorageMethods.TO_PIPELINE: send_to_pipeline
     }
 
+    connection_types = {
+        ConnectionTypes.TEST: TestConnection,
+        ConnectionTypes.SERVER: SeismographConnection
+    }
+
     load_dotenv()
     server_ip = os.getenv("SEISMOGRAPH_SERVER_IP")
     storage_method_name = os.getenv("SEISMOGRAPH_STORAGE_METHOD")
+    connection_type_name = os.getenv("SEISMOGRAPH_CONNECTION_TYPE")
 
-    connection = SeismographConnection(server_ip, SERVER_PORT)
+    connection = connection_types[ConnectionTypes(connection_type_name)](server_ip, SERVER_PORT)
 
     try:
         storage_method = storage_methods[StorageMethods(storage_method_name)]
@@ -62,6 +110,7 @@ def send_to_pipeline(data: list, file_count: int) -> None:
 
 def save_to_file(data: list, file_count: int) -> None:
     timestamp = int(round(time.time() * 1000))
+    print("foo")
 
     filename = f"seismograph_{str(timestamp)}_{str(file_count)}.txt"
     filepath = os.path.join(ROOT_PATH, 'data', filename)
@@ -69,11 +118,11 @@ def save_to_file(data: list, file_count: int) -> None:
     print(f"Saving samples to {filepath}")
     with open(filepath, 'w') as file:
         while len(data) > 0:
-            file.write(data.pop(0).decode())
+            file.write(data.pop(0).decode("utf-8"))
             file.write("\n")
 
 
-def run(connection: SeismographConnection, storage_method: types.FunctionType) -> None:
+def run(connection: Connection, storage_method: types.FunctionType) -> None:
     """ Fetches samples from a seismograph server and stores it according to a provided storage method function """
 
     samples = []
@@ -97,6 +146,7 @@ def run(connection: SeismographConnection, storage_method: types.FunctionType) -
 
         samples.append(data)
         if len(samples) > MAX_SAMPLES:
+            storage_method(samples, file_count)
             process = Process(target=storage_method, args=(samples, file_count))
             process.daemon = True
             process.start()
