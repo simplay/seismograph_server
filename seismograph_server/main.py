@@ -71,7 +71,7 @@ class SeismographConnection(Connection):
     def message(self):
         msg, sender = self.udp_server_socket.recvfrom(self.BUFFER_SIZE)
         print(sender, ": ", msg)
-        return msg.decode("utf-8")
+        return msg.decode("utf-8"), sender
 
     def ack_message(self, address):
         self.udp_server_socket.sendto(self.RESPONSE_MSG, address)
@@ -114,11 +114,12 @@ def main() -> None:
 
     connection = connection_types[ConnectionTypes(connection_type_name)](server_ip, SERVER_PORT)
 
-    try:
-        storage_method = storage_methods[StorageMethods(storage_method_name)]
-        run(connection, storage_method, meta_data)
-    except (KeyError, ValueError):
-        print(f"Not supported storage method '{storage_method_name}'")
+    # try:
+    storage_method = storage_methods[StorageMethods(storage_method_name)]
+    run(connection, storage_method, meta_data)
+# except (KeyError, ValueError) as error:
+#     print(error)
+#     print(f"Not supported storage method '{storage_method_name}'")
 
 
 def send_to_pipeline(data: typing.List[str], meta_data: dict) -> None:
