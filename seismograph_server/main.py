@@ -15,6 +15,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 SERVER_PORT = 20001
+SERVER_PORT = 8888
 RESPONSE_MSG = str.encode("ACK")
 MAX_SAMPLES = 100
 
@@ -69,7 +70,9 @@ class SeismographConnection(Connection):
         self.udp_server_socket.bind((server_ip, server_port))
 
     def message(self):
-        return self.udp_server_socket.recvfrom(self.BUFFER_SIZE).decode("utf-8")
+        msg, sender = self.udp_server_socket.recvfrom(self.BUFFER_SIZE)
+        print(sender, ": ", msg)
+        return msg.decode("utf-8")
 
     def ack_message(self, address):
         self.udp_server_socket.sendto(self.RESPONSE_MSG, address)
