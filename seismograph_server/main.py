@@ -15,7 +15,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 SERVER_PORT = 20001
-SERVER_PORT = 8888
 RESPONSE_MSG = str.encode("ACK")
 MAX_SAMPLES = 100
 
