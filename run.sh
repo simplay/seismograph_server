@@ -17,4 +17,4 @@ else
 fi
 
 sudo docker build -t seismograph_server .
-sudo docker run --network host --privileged -v $(pwd)/data:/app/data -dit --restart unless-stopped seismograph_server
+sudo docker run --network host --log-opt max-size=10m --log-opt max-file=5 --privileged -v $(pwd)/data:/app/data -dit --restart unless-stopped seismograph_server
