@@ -17,4 +17,4 @@ else
 fi
 
 sudo docker build -t seismograph_server .
-sudo docker run --privileged -v $(pwd)/data:/app/data -dit --restart unless-stopped seismograph_server
+sudo docker run --network host --privileged -v $(pwd)/data:/app/data -dit --restart unless-stopped seismograph_server
