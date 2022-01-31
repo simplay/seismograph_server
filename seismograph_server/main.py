@@ -14,7 +14,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-SERVER_PORT = 20001
 RESPONSE_MSG = str.encode("ACK")
 MAX_SAMPLES = 100
 
@@ -103,16 +102,18 @@ def main() -> None:
     storage_method_name = os.getenv("SEISMOGRAPH_STORAGE_METHOD")
     connection_type_name = os.getenv("SEISMOGRAPH_CONNECTION_TYPE")
     backend_url = os.getenv("SEISMOGRAPH_PIPELINE_BACKEND_URL")
+    server_port = os.getenv("SEISMOGRAPH_SERVER_PORT")
     host_ip = os.getenv("SEISMOGRAPH_HOST_IP")
     location = os.getenv("SEISMOGRAPH_LOCATION")
 
     meta_data = {
         "backend_url": backend_url,
         "host_ip": host_ip,
-        "location": location
+        "location": location,
+	"server_port": server_port
     }
 
-    connection = connection_types[ConnectionTypes(connection_type_name)](server_ip, SERVER_PORT)
+    connection = connection_types[ConnectionTypes(connection_type_name)](server_ip, server_port)
 
     # try:
     storage_method = storage_methods[StorageMethods(storage_method_name)]
@@ -173,7 +174,7 @@ def run(connection: Connection, storage_method: types.FunctionType, meta_data: d
     samples = []
     file_count = 1
 
-    print(f"Reading data on UDP {connection.server_ip}:{SERVER_PORT}")
+    print(f"Reading data on UDP {connection.server_ip}:{meta_data["server_port"]}")
     while True:
         message = connection.message()
 
