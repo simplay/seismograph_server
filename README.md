@@ -39,3 +39,6 @@ python3 run.py
 | SEISMOGRAPH_SERVER_PORT | The port on the raspberrypi to which the seismograph sends its data. If two seismographs send their data to the same host, then this port has to be distinctive for both..|SEISMOGRAPH_SERVER_PORT="20001|" |
 | SEISMOGRAPH_LOCATION | The position where the sensor was placed.|SEISMOGRAPH_LOCATION="Kitchen"|
 | SEISMOGRAPH_SAMPLES_PER_SAVE| Number of samples fetched till performing a save action, according to the specified SEISMOGRAPH_STORAGE_METHOD|SEISMOGRAPH_SAMPLES_PER_SAVE=100|
+
+## Troubleshooting
+If the seismograhps have timegaps in the data they send, verify that the power cable is an original raspberry pi cable, as there needs to be a constant power supply.
